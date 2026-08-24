@@ -13,8 +13,13 @@ The API centralizes incident intake and uses explicit severity-to-SLA rules. A p
 - Business transitions live in the domain module, not route handlers.
 - Invalid lifecycle shortcuts return `409 Conflict` rather than silently changing state.
 - Mutations capture a portfolio actor for inspectable behavior without claiming authentication.
+- Assignment and lifecycle changes generate reverse-chronological audit events.
 - The repository boundary makes future PostgreSQL persistence a replaceable adapter.
 - Tests exercise business behavior through the public HTTP contract.
+
+## Verified result
+
+Seven automated tests verify the public health boundary, recruiter-facing dashboard, incident creation, severity-based SLA calculation, invalid transition rejection, attributable owner assignment, audit history, priority ordering, and workload metrics.
 
 ## Limitations
 

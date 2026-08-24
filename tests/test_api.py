@@ -12,6 +12,13 @@ def test_health_declares_portfolio_boundary():
     assert "fictional" in response.json()["data_boundary"]
 
 
+def test_dashboard_is_recruiter_evaluable():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Service Operations Command Center" in response.text
+    assert "Priority queue" in response.text
+
+
 def test_create_incident_calculates_sla_and_actor():
     response = client.post(
         "/api/incidents",
@@ -32,6 +39,23 @@ def test_invalid_status_transition_is_rejected():
     ).json()
     response = client.patch(f"/api/incidents/{incident['id']}/status", json={"status": "resolved"})
     assert response.status_code == 409
+
+
+def test_assignment_is_attributable_and_audited():
+    incident = client.post(
+        "/api/incidents",
+        json={"title": "Reporting export is delayed", "service": "reporting", "severity": "low"},
+    ).json()
+    response = client.patch(
+        f"/api/incidents/{incident['id']}/owner",
+        headers={"X-Actor": "operations-lead"},
+        json={"owner": "sam"},
+    )
+    assert response.status_code == 200
+    assert response.json()["owner"] == "sam"
+    events = client.get("/api/audit-events").json()
+    assert events[0]["event"] == "incident.owner_assigned"
+    assert events[0]["actor"] == "operations-lead"
 
 
 def test_priority_queue_places_breached_work_first():

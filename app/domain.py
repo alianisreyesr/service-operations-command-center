@@ -59,6 +59,10 @@ class StatusChange(BaseModel):
     status: Status
 
 
+class OwnerChange(BaseModel):
+    owner: str = Field(min_length=2, max_length=80)
+
+
 def create_incident(payload: IncidentCreate, actor: str, now: datetime | None = None) -> Incident:
     created = now or datetime.now(UTC)
     return Incident(

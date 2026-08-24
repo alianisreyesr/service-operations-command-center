@@ -13,6 +13,12 @@ A portfolio-safe service operations API for incident intake, prioritization, own
 
 > **Data boundary:** The bundled organizations, users, and incidents are fictional. The application is a portfolio prototype, not a production ticketing or emergency-response system.
 
+## Portfolio preview
+
+![Synthetic service operations command center with SLA metrics and priority queue](docs/assets/command-center.png)
+
+The dashboard is rendered from the same domain metrics and priority rules exposed by the API.
+
 ## Business outcome
 
 Support and technology teams need a consistent operational picture: what is open, what is overdue, who owns it, and which service commitments are at risk. This API turns those questions into explicit domain rules and measurable endpoints.
@@ -23,8 +29,9 @@ Support and technology teams need a consistent operational picture: what is open
 - Controlled status transitions and owner assignment
 - Priority queue ordered by breach state, severity, and due time
 - Portfolio-safe actor attribution on mutations
+- Reverse-chronological audit events for creation, assignment, and status changes
 - Operational metrics for open, breached, resolved, and unassigned work
-- OpenAPI documentation, container packaging, and automated tests
+- Recruiter-facing web dashboard, OpenAPI documentation, container packaging, and automated tests
 
 ## Architecture
 
@@ -48,7 +55,7 @@ python -m pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs), or run:
+Open the [command center](http://127.0.0.1:8000/) or [OpenAPI documentation](http://127.0.0.1:8000/docs), or run:
 
 ```bash
 curl http://127.0.0.1:8000/api/metrics
@@ -71,7 +78,9 @@ docker run --rm -p 8000:8000 service-operations-command-center
 | GET/POST | `/api/incidents` | List or create incidents |
 | GET | `/api/incidents/priority-queue` | Decision-ready work queue |
 | PATCH | `/api/incidents/{id}/status` | Controlled lifecycle transition |
+| PATCH | `/api/incidents/{id}/owner` | Attributable owner assignment |
 | GET | `/api/metrics` | SLA and workload metrics |
+| GET | `/api/audit-events` | Reviewable mutation history |
 
 ## Engineering boundary
 
