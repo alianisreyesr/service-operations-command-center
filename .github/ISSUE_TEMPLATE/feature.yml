@@ -1,0 +1,14 @@
+name: Product improvement
+description: Propose an operational workflow improvement.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes: { label: User problem }
+    validations: { required: true }
+  - type: textarea
+    attributes: { label: Proposed outcome }
+    validations: { required: true }
+  - type: textarea
+    attributes: { label: Acceptance evidence }
+    validations: { required: true }
