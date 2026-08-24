@@ -1,7 +1,5 @@
 # Service Operations Command Center
 
-[![CI](https://github.com/alianisreyesr/service-operations-command-center/actions/workflows/ci.yml/badge.svg)](https://github.com/alianisreyesr/service-operations-command-center/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/alianisreyesr/service-operations-command-center/actions/workflows/codeql.yml/badge.svg)](https://github.com/alianisreyesr/service-operations-command-center/actions/workflows/codeql.yml)
 ![FastAPI](https://img.shields.io/badge/FastAPI-service-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)
