@@ -1,5 +1,16 @@
 # Architecture
 
+```mermaid
+flowchart LR
+  A["Streamlit operations dashboard"] --> D["Incident domain model"]
+  B["API clients"] --> C["FastAPI interface"]
+  C --> D
+  D --> E["Repository boundary"]
+  E --> F["In-memory demonstration adapter"]
+  C --> G["Metrics and priority endpoints"]
+  G --> A
+```
+
 ## Layers
 
 1. **HTTP interface:** FastAPI request validation, response models, and status semantics.
@@ -9,9 +20,14 @@
 
 ## Production roadmap
 
-- PostgreSQL with Alembic migrations
-- OIDC login and organization-scoped RBAC
-- Redis-backed work queue for notifications and escalations
-- React/TypeScript command-center UI
-- OpenTelemetry traces, structured logs, and SLO dashboards
-- Contract, load, accessibility, and end-to-end tests
+```mermaid
+flowchart LR
+  A["OIDC and organization RBAC"] --> B["FastAPI service"]
+  B --> C["PostgreSQL and Alembic"]
+  B --> D["Redis escalation workers"]
+  B --> E["Python operations dashboard"]
+  F["OpenTelemetry"] -. observes .-> B
+  F -. observes .-> D
+  G["Contract, load, accessibility, and end-to-end tests"] -. validates .-> B
+  G -. validates .-> E
+```

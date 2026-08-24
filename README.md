@@ -2,6 +2,7 @@
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-service-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-2E7D32?style=flat-square)
 
@@ -31,14 +32,14 @@ Support and technology teams need a consistent operational picture: what is open
 - Portfolio-safe actor attribution on mutations
 - Reverse-chronological audit events for creation, assignment, and status changes
 - Operational metrics for open, breached, resolved, and unassigned work
-- Recruiter-facing web dashboard, OpenAPI documentation, container packaging, and automated tests
+- Interactive Python/Streamlit command center, OpenAPI documentation, container packaging, and automated tests
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A["Client / future React UI"] --> B["FastAPI routes"]
-  B --> C["Incident domain rules"]
+  A["Streamlit command center"] --> C["Incident domain rules"]
+  B["FastAPI routes"] --> C
   C --> D["Repository interface"]
   D --> E["In-memory demo adapter"]
   B --> F["Operational KPI endpoints"]
@@ -53,9 +54,10 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 uvicorn app.main:app --reload
+streamlit run dashboard.py
 ```
 
-Open the [command center](http://127.0.0.1:8000/) or [OpenAPI documentation](http://127.0.0.1:8000/docs), or run:
+Open the Streamlit command center at `http://127.0.0.1:8501`, the compact FastAPI view at `http://127.0.0.1:8000/`, or the [OpenAPI documentation](http://127.0.0.1:8000/docs). You can also run:
 
 ```bash
 curl http://127.0.0.1:8000/api/metrics

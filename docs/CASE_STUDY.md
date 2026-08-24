@@ -19,7 +19,7 @@ The API centralizes incident intake and uses explicit severity-to-SLA rules. A p
 
 ## Verified result
 
-Seven automated tests verify the public health boundary, recruiter-facing dashboard, incident creation, severity-based SLA calculation, invalid transition rejection, attributable owner assignment, audit history, priority ordering, and workload metrics.
+Eight automated tests verify the public health boundary, interactive Streamlit dashboard, incident creation, severity-based SLA calculation, invalid transition rejection, attributable owner assignment, audit history, priority ordering, and workload metrics.
 
 ## Limitations
 
