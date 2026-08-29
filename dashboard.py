@@ -6,7 +6,8 @@ import pandas as pd
 import streamlit as st
 
 from app.domain import Severity
-from app.main import INCIDENTS, metrics, priority_queue
+from app.main import incidents as incident_repository
+from app.main import metrics, priority_queue
 
 
 def incident_frame() -> pd.DataFrame:
@@ -23,7 +24,7 @@ def incident_frame() -> pd.DataFrame:
                 "sla_due_at": item.sla_due_at,
                 "breached": item.breached,
             }
-            for item in INCIDENTS.values()
+            for item in incident_repository.list()
         ]
     )
 
