@@ -3,27 +3,31 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from html import escape
 
 from fastapi import FastAPI, Header, HTTPException, status
 from fastapi.responses import HTMLResponse
 
 from app.domain import Incident, IncidentCreate, OwnerChange, Severity, Status, StatusChange, create_incident, transition
+from app.repository import IncidentRepository, InMemoryIncidentRepository
 
 
 app = FastAPI(title="Service Operations Command Center", version="0.1.0")
 
 
-def _seed() -> dict[str, Incident]:
+def _seed() -> list[Incident]:
     now = datetime.now(UTC)
-    examples = [
+    return [
         create_incident(IncidentCreate(title="Checkout latency above target", service="checkout", severity=Severity.high, owner="maya"), "synthetic-seed", now - timedelta(hours=6)),
         create_incident(IncidentCreate(title="Delayed inventory synchronization", service="inventory", severity=Severity.medium), "synthetic-seed", now - timedelta(hours=2)),
         create_incident(IncidentCreate(title="Customer portal image unavailable", service="portal", severity=Severity.low, owner="noah"), "synthetic-seed", now - timedelta(minutes=30)),
     ]
-    return {item.id: item for item in examples}
 
 
-INCIDENTS = _seed()
+# Route handlers talk only to this interface (see app/repository.py) — a
+# PostgreSQL-backed IncidentRepository can replace this without touching
+# any handler below.
+incidents: IncidentRepository = InMemoryIncidentRepository(_seed())
 AUDIT_EVENTS: list[dict[str, str]] = []
 
 
@@ -39,12 +43,26 @@ def _record(event: str, incident: Incident, actor: str, detail: str) -> None:
     )
 
 
+def _get_or_404(incident_id: str) -> Incident:
+    incident = incidents.get(incident_id)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return incident
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard() -> str:
     snapshot = metrics()
     queue = priority_queue()
+    # title/owner are user-supplied (IncidentCreate/OwnerChange) — escape
+    # before interpolating into raw HTML, or a title like
+    # "<script>fetch('//evil')</script>" executes in every visitor's
+    # browser the next time this route is loaded.
     rows = "".join(
-        f"<tr><td>{item['id']}</td><td>{item['title']}</td><td><span class='severity {item['severity']}'>{item['severity']}</span></td><td>{item['owner'] or 'Unassigned'}</td><td>{'Breached' if item['breached'] else 'On track'}</td></tr>"
+        f"<tr><td>{escape(item['id'])}</td><td>{escape(item['title'])}</td>"
+        f"<td><span class='severity {escape(item['severity'])}'>{escape(item['severity'])}</span></td>"
+        f"<td>{escape(item['owner']) if item['owner'] else 'Unassigned'}</td>"
+        f"<td>{'Breached' if item['breached'] else 'On track'}</td></tr>"
         for item in queue
     )
     return f"""<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
@@ -70,38 +88,40 @@ def health() -> dict[str, str]:
 
 @app.get("/api/incidents", response_model=list[Incident])
 def list_incidents() -> list[Incident]:
-    return list(INCIDENTS.values())
+    return incidents.list()
 
 
 @app.post("/api/incidents", response_model=Incident, status_code=status.HTTP_201_CREATED)
 def add_incident(payload: IncidentCreate, x_actor: str = Header(default="portfolio-user")) -> Incident:
     incident = create_incident(payload, x_actor)
-    INCIDENTS[incident.id] = incident
+    incidents.save(incident)
     _record("incident.created", incident, x_actor, f"severity={incident.severity}")
     return incident
 
 
 @app.patch("/api/incidents/{incident_id}/status", response_model=Incident)
 def update_status(incident_id: str, payload: StatusChange, x_actor: str = Header(default="portfolio-user")) -> Incident:
-    incident = INCIDENTS.get(incident_id)
-    if incident is None:
-        raise HTTPException(status_code=404, detail="Incident not found")
+    incident = _get_or_404(incident_id)
     try:
         updated = transition(incident, payload.status, x_actor)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    INCIDENTS[incident_id] = updated
+    incidents.save(updated)
     _record("incident.status_changed", updated, x_actor, f"{incident.status}->{updated.status}")
     return updated
 
 
 @app.patch("/api/incidents/{incident_id}/owner", response_model=Incident)
 def assign_owner(incident_id: str, payload: OwnerChange, x_actor: str = Header(default="portfolio-user")) -> Incident:
-    incident = INCIDENTS.get(incident_id)
-    if incident is None:
-        raise HTTPException(status_code=404, detail="Incident not found")
+    incident = _get_or_404(incident_id)
+    # update_status enforces TRANSITIONS; this endpoint enforced nothing,
+    # so an owner could be silently reassigned on an already-resolved
+    # incident. Resolved is a terminal state for status; it should be
+    # terminal for ownership too.
+    if incident.status == Status.resolved:
+        raise HTTPException(status_code=409, detail="Cannot reassign owner on a resolved incident")
     updated = incident.model_copy(update={"owner": payload.owner, "updated_by": x_actor})
-    INCIDENTS[incident_id] = updated
+    incidents.save(updated)
     _record("incident.owner_assigned", updated, x_actor, f"owner={payload.owner}")
     return updated
 
@@ -109,7 +129,7 @@ def assign_owner(incident_id: str, payload: OwnerChange, x_actor: str = Header(d
 @app.get("/api/incidents/priority-queue")
 def priority_queue() -> list[dict[str, object]]:
     severity_rank = {Severity.critical: 0, Severity.high: 1, Severity.medium: 2, Severity.low: 3}
-    active = [item for item in INCIDENTS.values() if item.status != Status.resolved]
+    active = [item for item in incidents.list() if item.status != Status.resolved]
     ordered = sorted(active, key=lambda item: (not item.breached, severity_rank[item.severity], item.sla_due_at))
     return [
         {
@@ -126,13 +146,13 @@ def priority_queue() -> list[dict[str, object]]:
 
 @app.get("/api/metrics")
 def metrics() -> dict[str, int]:
-    incidents = list(INCIDENTS.values())
+    items = incidents.list()
     return {
-        "total": len(incidents),
-        "open": sum(item.status != Status.resolved for item in incidents),
-        "breached": sum(item.breached for item in incidents),
-        "resolved": sum(item.status == Status.resolved for item in incidents),
-        "unassigned": sum(item.owner is None and item.status != Status.resolved for item in incidents),
+        "total": len(items),
+        "open": sum(item.status != Status.resolved for item in items),
+        "breached": sum(item.breached for item in items),
+        "resolved": sum(item.status == Status.resolved for item in items),
+        "unassigned": sum(item.owner is None and item.status != Status.resolved for item in items),
     }
 
 
