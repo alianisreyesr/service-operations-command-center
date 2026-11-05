@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from uuid import uuid4
-
 from typing import Annotated
+from uuid import uuid4
 
 from pydantic import BaseModel, StringConstraints
 
@@ -26,6 +25,8 @@ class Status(StrEnum):
 
 
 SLA_HOURS = {Severity.critical: 1, Severity.high: 4, Severity.medium: 12, Severity.low: 24}
+# Lower rank = more urgent. Used to order the priority queue.
+SEVERITY_RANK = {Severity.critical: 0, Severity.high: 1, Severity.medium: 2, Severity.low: 3}
 TRANSITIONS = {
     Status.open: {Status.investigating},
     Status.investigating: {Status.mitigated, Status.resolved},
@@ -58,9 +59,13 @@ class Incident(BaseModel):
     sla_due_at: datetime
     updated_by: str
 
+    def is_breached(self, now: datetime | None = None) -> bool:
+        """SLA state at ``now`` (injectable so callers and tests can use a fixed clock)."""
+        return self.status != Status.resolved and (now or datetime.now(UTC)) > self.sla_due_at
+
     @property
     def breached(self) -> bool:
-        return self.status != Status.resolved and datetime.now(UTC) > self.sla_due_at
+        return self.is_breached()
 
 
 class StatusChange(BaseModel):
@@ -74,7 +79,8 @@ class OwnerChange(BaseModel):
 def create_incident(payload: IncidentCreate, actor: str, now: datetime | None = None) -> Incident:
     created = now or datetime.now(UTC)
     return Incident(
-        id=f"INC-{uuid4().hex[:8].upper()}",
+        # 12 hex chars = 48 bits: collisions are negligible at demo scale (8 hex was 32 bits).
+        id=f"INC-{uuid4().hex[:12].upper()}",
         title=payload.title,
         service=payload.service,
         severity=payload.severity,

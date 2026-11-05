@@ -2,21 +2,41 @@
 
 from __future__ import annotations
 
+from collections import deque
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from html import escape
+from typing import TypedDict
 
-from fastapi import FastAPI, Header, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
 
-from app.domain import Incident, IncidentCreate, OwnerChange, Severity, Status, StatusChange, create_incident, transition
+from app.domain import (
+    SEVERITY_RANK,
+    Incident,
+    IncidentCreate,
+    OwnerChange,
+    Severity,
+    Status,
+    StatusChange,
+    create_incident,
+    transition,
+)
 from app.repository import IncidentRepository, InMemoryIncidentRepository
-
 
 app = FastAPI(title="Service Operations Command Center", version="0.1.0")
 
 
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
+# Injectable clock: tests replace it to get deterministic SLA/queue results.
+clock: Callable[[], datetime] = _utcnow
+
+
 def _seed() -> list[Incident]:
-    now = datetime.now(UTC)
+    now = clock()
     return [
         create_incident(IncidentCreate(title="Checkout latency above target", service="checkout", severity=Severity.high, owner="maya"), "synthetic-seed", now - timedelta(hours=6)),
         create_incident(IncidentCreate(title="Delayed inventory synchronization", service="inventory", severity=Severity.medium), "synthetic-seed", now - timedelta(hours=2)),
@@ -28,7 +48,18 @@ def _seed() -> list[Incident]:
 # PostgreSQL-backed IncidentRepository can replace this without touching
 # any handler below.
 incidents: IncidentRepository = InMemoryIncidentRepository(_seed())
-AUDIT_EVENTS: list[dict[str, str]] = []
+# Bounded: the oldest events are dropped so an unattended process cannot grow forever.
+AUDIT_MAX_EVENTS = 1000
+AUDIT_EVENTS: deque[dict[str, str]] = deque(maxlen=AUDIT_MAX_EVENTS)
+
+
+class QueueItem(TypedDict):
+    id: str
+    title: str
+    severity: Severity
+    owner: str | None
+    breached: bool
+    sla_due_at: datetime
 
 
 def _record(event: str, incident: Incident, actor: str, detail: str) -> None:
@@ -38,7 +69,7 @@ def _record(event: str, incident: Incident, actor: str, detail: str) -> None:
             "incident_id": incident.id,
             "actor": actor,
             "detail": detail,
-            "occurred_at": datetime.now(UTC).isoformat(),
+            "occurred_at": clock().isoformat(),
         }
     )
 
@@ -87,13 +118,19 @@ def health() -> dict[str, str]:
 
 
 @app.get("/api/incidents", response_model=list[Incident])
-def list_incidents() -> list[Incident]:
-    return incidents.list()
+def list_incidents(
+    response: Response,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> list[Incident]:
+    items = incidents.list()
+    response.headers["X-Total-Count"] = str(len(items))
+    return items[offset : offset + limit]
 
 
 @app.post("/api/incidents", response_model=Incident, status_code=status.HTTP_201_CREATED)
 def add_incident(payload: IncidentCreate, x_actor: str = Header(default="portfolio-user", min_length=1, max_length=64)) -> Incident:
-    incident = create_incident(payload, x_actor)
+    incident = create_incident(payload, x_actor, clock())
     incidents.save(incident)
     _record("incident.created", incident, x_actor, f"severity={incident.severity}")
     return incident
@@ -127,17 +164,21 @@ def assign_owner(incident_id: str, payload: OwnerChange, x_actor: str = Header(d
 
 
 @app.get("/api/incidents/priority-queue")
-def priority_queue() -> list[dict[str, object]]:
-    severity_rank = {Severity.critical: 0, Severity.high: 1, Severity.medium: 2, Severity.low: 3}
+def priority_queue() -> list[QueueItem]:
+    now = clock()  # one reading per request keeps the order and the flags consistent
     active = [item for item in incidents.list() if item.status != Status.resolved]
-    ordered = sorted(active, key=lambda item: (not item.breached, severity_rank[item.severity], item.sla_due_at))
+    # created_at/id make ties deterministic (same breach state, severity and due time).
+    ordered = sorted(
+        active,
+        key=lambda item: (not item.is_breached(now), SEVERITY_RANK[item.severity], item.sla_due_at, item.created_at, item.id),
+    )
     return [
         {
             "id": item.id,
             "title": item.title,
             "severity": item.severity,
             "owner": item.owner,
-            "breached": item.breached,
+            "breached": item.is_breached(now),
             "sla_due_at": item.sla_due_at,
         }
         for item in ordered
@@ -147,10 +188,11 @@ def priority_queue() -> list[dict[str, object]]:
 @app.get("/api/metrics")
 def metrics() -> dict[str, int]:
     items = incidents.list()
+    now = clock()
     return {
         "total": len(items),
         "open": sum(item.status != Status.resolved for item in items),
-        "breached": sum(item.breached for item in items),
+        "breached": sum(item.is_breached(now) for item in items),
         "resolved": sum(item.status == Status.resolved for item in items),
         "unassigned": sum(item.owner is None and item.status != Status.resolved for item in items),
     }

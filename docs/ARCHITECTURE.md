@@ -8,8 +8,11 @@ flowchart LR
   D --> E["Repository boundary"]
   E --> F["In-memory demonstration adapter"]
   C --> G["Metrics and priority endpoints"]
-  G --> A
 ```
+
+The Streamlit dashboard and the API are separate processes that import the same code. The dashboard does not call the HTTP endpoints, and each process holds its own in-memory store, so their data is not shared until a common persistent adapter (PostgreSQL) exists.
+
+Operational notes: time is read through an injectable `clock` in `app/main.py` (tests use a fixed clock); the audit log is a bounded deque (1000 events); incident ids are `INC-` plus 12 hex characters; the priority queue breaks ties by `created_at` and then `id`, so its order is deterministic.
 
 ## Layers
 

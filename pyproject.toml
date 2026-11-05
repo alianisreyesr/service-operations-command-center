@@ -1,3 +1,34 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.coverage.run]
+branch = true
+source = ["app", "dashboard"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+# Long inline HTML/CSS strings in app/main.py are intentional.
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["app", "dashboard.py", "tests"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# pandas ships no inline types and pandas-stubs is not a project dependency.
+module = ["pandas", "pandas.*"]
+ignore_missing_imports = true

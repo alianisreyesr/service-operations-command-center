@@ -6,7 +6,29 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
+  lint:
+    name: Lint and types (ruff + mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy
+
   test:
     name: Backend (pytest + coverage)
     runs-on: ubuntu-latest
@@ -23,7 +45,8 @@ jobs:
       - name: Run tests with coverage
         run: |
           pytest tests/ -v --tb=short \
-            --cov=app \
+            --cov \
+            --cov-fail-under=90 \
             --cov-report=term-missing \
             --cov-report=xml
 

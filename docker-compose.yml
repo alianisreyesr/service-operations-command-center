@@ -1,3 +1,6 @@
+# The two services are independent: each container has its own in-memory incident store.
+# The Streamlit dashboard imports the domain/repository code directly and does NOT call the API,
+# so incidents created through the API (port 8000) do not appear in the dashboard (port 8501).
 services:
   api:
     build: .
@@ -9,5 +12,8 @@ services:
     command: streamlit run dashboard.py --server.port=8501 --server.address=0.0.0.0
     ports:
       - "8501:8501"
-    depends_on:
-      - api
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

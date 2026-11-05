@@ -5,13 +5,19 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from app import main as api
 from app.domain import Severity
-from app.main import incidents as incident_repository
 from app.main import metrics, priority_queue
 
 
 def incident_frame() -> pd.DataFrame:
-    """Return a presentation-ready snapshot without mutating the demo store."""
+    """Return a presentation-ready snapshot without mutating the demo store.
+
+    The dashboard reads the in-process repository directly; it does not call the HTTP API
+    (see "Dashboard and API" in the README).
+    """
+    now = api.clock()
+    columns = ["id", "title", "service", "severity", "status", "owner", "sla_due_at", "breached"]
     return pd.DataFrame(
         [
             {
@@ -22,10 +28,11 @@ def incident_frame() -> pd.DataFrame:
                 "status": item.status.value,
                 "owner": item.owner or "Unassigned",
                 "sla_due_at": item.sla_due_at,
-                "breached": item.breached,
+                "breached": item.is_breached(now),
             }
-            for item in incident_repository.list()
-        ]
+            for item in api.incidents.list()
+        ],
+        columns=columns,
     )
 
 

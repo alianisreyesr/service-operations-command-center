@@ -12,6 +12,22 @@ The project follows semantic versioning for public portfolio releases. Version n
 - Limit `X-Actor` to 1-64 characters (422 otherwise)
 - Version aligned with the application (`0.1.0`) and case-study test count corrected
 
+### Changed
+
+- CI now runs `ruff` and `mypy`, declares least-privilege `permissions`, and enforces `--cov-fail-under=90` (branch coverage, including `dashboard.py`)
+- `pytest` and `httpx` moved from `requirements.txt` to `requirements-dev.txt`; `pydantic` declared explicitly; `streamlit>=1.49` (first release accepting `width="stretch"`, verified) and `pandas>=2.2,<4` aligned with the other portfolio projects
+- Audit log is bounded (1000 events); `GET /api/incidents` is paginated (`limit`, `offset`, `X-Total-Count`)
+- Incident ids use 12 hex characters instead of 8
+- Priority queue is deterministic (ties by `created_at`, then `id`) and uses one clock reading per request; `severity_rank` is now the domain constant `SEVERITY_RANK`
+- Time is read through an injectable clock; tests run with a fixed clock and isolated state
+- Docs state that the Streamlit dashboard does not call the API; misleading `depends_on` removed from `docker-compose.yml`; Docker `HEALTHCHECK` added
+- Dashboard no longer fails on an empty repository
+- `.gitignore`, `CONTRIBUTING.md` and `SECURITY.md` expanded
+
+### Added
+
+- Tests for 404/422 paths, queue ordering and ties, SLA boundaries, audit ordering and bound, pagination, and state isolation
+
 ## [0.1.0] — 2026-08-27
 
 ### Added
