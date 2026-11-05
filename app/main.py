@@ -6,10 +6,10 @@ from collections import deque
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from html import escape
-from typing import TypedDict
 
 from fastapi import FastAPI, Header, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
+from typing_extensions import TypedDict
 
 from app.domain import (
     SEVERITY_RANK,
