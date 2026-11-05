@@ -98,3 +98,31 @@ def test_owner_cannot_be_reassigned_on_resolved_incident():
         json={"owner": "sam"},
     )
     assert response.status_code == 409
+
+
+VALID = {"title": "Payment gateway response degraded", "service": "payments", "severity": "critical"}
+
+
+def test_blank_title_service_and_owner_are_rejected():
+    for field, value in (("title", "     "), ("service", "  "), ("owner", ""), ("owner", "   ")):
+        response = client.post("/api/incidents", json={**VALID, field: value})
+        assert response.status_code == 422, (field, value)
+
+
+def test_blank_owner_change_is_rejected():
+    created = client.post("/api/incidents", json=VALID).json()
+    response = client.patch(f"/api/incidents/{created['id']}/owner", json={"owner": "  "})
+    assert response.status_code == 422
+
+
+def test_title_is_stripped_when_valid():
+    response = client.post("/api/incidents", json={**VALID, "title": "  Padded title here  "})
+    assert response.status_code == 201
+    assert response.json()["title"] == "Padded title here"
+
+
+def test_overlong_actor_header_is_rejected_and_normal_one_accepted():
+    too_long = client.post("/api/incidents", headers={"X-Actor": "a" * 65}, json=VALID)
+    assert too_long.status_code == 422
+    ok = client.post("/api/incidents", headers={"X-Actor": "a" * 64}, json=VALID)
+    assert ok.status_code == 201

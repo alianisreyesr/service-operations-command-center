@@ -6,7 +6,9 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from typing import Annotated
+
+from pydantic import BaseModel, StringConstraints
 
 
 class Severity(StrEnum):
@@ -32,11 +34,17 @@ TRANSITIONS = {
 }
 
 
+# Whitespace is stripped before length checks so blank values are rejected (422).
+Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=120)]
+Service = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=60)]
+Owner = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)]
+
+
 class IncidentCreate(BaseModel):
-    title: str = Field(min_length=5, max_length=120)
-    service: str = Field(min_length=2, max_length=60)
+    title: Title
+    service: Service
     severity: Severity
-    owner: str | None = None
+    owner: Owner | None = None
 
 
 class Incident(BaseModel):
@@ -60,7 +68,7 @@ class StatusChange(BaseModel):
 
 
 class OwnerChange(BaseModel):
-    owner: str = Field(min_length=2, max_length=80)
+    owner: Owner
 
 
 def create_incident(payload: IncidentCreate, actor: str, now: datetime | None = None) -> Incident:

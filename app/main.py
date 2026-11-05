@@ -92,7 +92,7 @@ def list_incidents() -> list[Incident]:
 
 
 @app.post("/api/incidents", response_model=Incident, status_code=status.HTTP_201_CREATED)
-def add_incident(payload: IncidentCreate, x_actor: str = Header(default="portfolio-user")) -> Incident:
+def add_incident(payload: IncidentCreate, x_actor: str = Header(default="portfolio-user", min_length=1, max_length=64)) -> Incident:
     incident = create_incident(payload, x_actor)
     incidents.save(incident)
     _record("incident.created", incident, x_actor, f"severity={incident.severity}")
@@ -100,7 +100,7 @@ def add_incident(payload: IncidentCreate, x_actor: str = Header(default="portfol
 
 
 @app.patch("/api/incidents/{incident_id}/status", response_model=Incident)
-def update_status(incident_id: str, payload: StatusChange, x_actor: str = Header(default="portfolio-user")) -> Incident:
+def update_status(incident_id: str, payload: StatusChange, x_actor: str = Header(default="portfolio-user", min_length=1, max_length=64)) -> Incident:
     incident = _get_or_404(incident_id)
     try:
         updated = transition(incident, payload.status, x_actor)
@@ -112,7 +112,7 @@ def update_status(incident_id: str, payload: StatusChange, x_actor: str = Header
 
 
 @app.patch("/api/incidents/{incident_id}/owner", response_model=Incident)
-def assign_owner(incident_id: str, payload: OwnerChange, x_actor: str = Header(default="portfolio-user")) -> Incident:
+def assign_owner(incident_id: str, payload: OwnerChange, x_actor: str = Header(default="portfolio-user", min_length=1, max_length=64)) -> Incident:
     incident = _get_or_404(incident_id)
     # update_status enforces TRANSITIONS; this endpoint enforced nothing,
     # so an owner could be silently reassigned on an already-resolved
