@@ -10,7 +10,7 @@
 
 **Backend Engineering · SaaS Operations · SLA Management · API Design**
 
-A portfolio-safe service operations API for incident intake, prioritization, ownership, lifecycle control, and SLA visibility.
+A service operations API (synthetic data) for incident intake, prioritization, ownership, lifecycle control, and SLA visibility.
 
 [API demo](#quick-start) · [Case study](docs/CASE_STUDY.md) · [Architecture](docs/ARCHITECTURE.md) · [Source](https://github.com/alianisreyesr/service-operations-command-center)
 
@@ -101,10 +101,6 @@ The Streamlit dashboard and the FastAPI service are two independent processes th
 ## Engineering boundary
 
 Authentication is represented by the `X-Actor` header for attributable demo actions; it is not identity verification. Production use would require OIDC, RBAC enforcement, PostgreSQL migrations, background workers, notifications, rate limits, secrets management, observability, tenancy isolation, and recovery controls.
-
-## Target roles
-
-Backend Engineer · Full-Stack Engineer · Software Engineer · Platform Engineer
 
 ## Portfolio Ecosystem
 
