@@ -2,5 +2,5 @@ fastapi>=0.141.1,<1
 uvicorn>=0.52.4,<1
 pydantic>=2.7,<3
 pandas>=2.2,<4
-streamlit>=1.49,<2
+streamlit>=1.67.0,<2
 typing_extensions>=4.8
