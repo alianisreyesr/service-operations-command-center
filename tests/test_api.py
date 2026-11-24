@@ -4,7 +4,7 @@ def test_health_declares_portfolio_boundary(client):
     assert "fictional" in response.json()["data_boundary"]
 
 
-def test_dashboard_is_recruiter_evaluable(client):
+def test_dashboard_serves_the_command_center(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "Service Operations Command Center" in response.text
