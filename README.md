@@ -120,4 +120,4 @@ Related portfolio projects (synthetic data only):
 
 ---
 
-Built by [Alianis Reyes-Reyes](https://www.linkedin.com/in/alianis-reyes-reyes/).
+Built by [Alianis Reyes Reyes](https://www.linkedin.com/in/alianis-reyes-reyes/).
